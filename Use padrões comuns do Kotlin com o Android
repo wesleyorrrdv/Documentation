@@ -1,0 +1,253 @@
+Use padrões comuns do Kotlin com o Android
+
+Este tópico se concentra em alguns dos aspectos mais úteis da linguagem Kotlin ao desenvolver para o Android.
+Como trabalhar com fragmentos
+
+As seções a seguir usam exemplos de Fragment para destacar alguns dos melhores recursos do Kotlin.
+Herança
+
+Você pode declarar uma classe no Kotlin com a palavra-chave class. No exemplo a seguir, LoginFragment é uma subclasse de Fragment. Você pode indicar a herança usando o operador : entre a subclasse e o pai:
+
+class LoginFragment : Fragment()
+
+Nessa declaração de classe, LoginFragment é responsável por chamar o construtor da superclasse, Fragment.
+
+Dentro de LoginFragment, você pode modificar vários callbacks de ciclo de vida para responder a mudanças de estado no Fragment. Para substituir uma função, use a palavra-chave override, conforme mostrado no exemplo a seguir:
+
+override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+): View? {
+    return inflater.inflate(R.layout.login_fragment, container, false)
+}
+
+Para fazer referência a uma função na classe pai, use a palavra-chave super, conforme mostrado no exemplo a seguir:
+
+override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    super.onViewCreated(view, savedInstanceState)
+}
+
+Nulidade e inicialização
+
+Nos exemplos anteriores, alguns dos parâmetros nos métodos modificados têm tipos sufixados com um ponto de interrogação ?. Isso indica que os argumentos passados para esses parâmetros podem ser nulos. Não deixe de usar a proteção contra valores nulos (link em inglês).
+
+No Kotlin, você precisa inicializar as propriedades ao declarar um objeto. Isso significa que, quando você tem uma instância de uma classe, é possível referenciar qualquer uma das propriedades acessíveis imediatamente. Os objetos View em um Fragment, no entanto, não ficam prontos para ser inflados até que Fragment#onCreateView seja chamado, então você precisa adiar a inicialização de propriedade para um View.
+
+O lateinit permite que você adie a inicialização da propriedade. Se for usar lateinit, a propriedade precisará ser inicializada assim que possível.
+
+O exemplo a seguir demonstra o uso de lateinit para atribuir objetos View em onViewCreated:
+
+class LoginFragment : Fragment() {
+
+    private lateinit var usernameEditText: EditText
+    private lateinit var passwordEditText: EditText
+    private lateinit var loginButton: Button
+    private lateinit var statusTextView: TextView
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        usernameEditText = view.findViewById(R.id.username_edit_text)
+        passwordEditText = view.findViewById(R.id.password_edit_text)
+        loginButton = view.findViewById(R.id.login_button)
+        statusTextView = view.findViewById(R.id.status_text_view)
+    }
+
+    ...
+}
+
+Observação: se você acessar uma propriedade antes que ela seja inicializada, o Kotlin lançará um UninitializedPropertyAccessException.
+Conversão de SAM
+
+Você pode detectar eventos de cliques no Android implementando a interface OnClickListener. Os objetos Button contêm uma função setOnClickListener() que recebe uma implementação de OnClickListener.
+
+OnClickListener tem um único método abstrato, onClick(), que você precisa implementar. Como setOnClickListener() sempre usa um OnClickListener como argumento e, como OnClickListener sempre tem o mesmo método abstrato, essa implementação pode ser representada usando uma função anônima no Kotlin. Esse processo é conhecido como conversão de método abstrato único (link em inglês) ou conversão de SAM.
+
+A conversão de SAM pode tornar seu código consideravelmente mais limpo. O exemplo a seguir mostra como usar a conversão de SAM para implementar um OnClickListener para um Button:
+
+loginButton.setOnClickListener {
+    val authSuccessful: Boolean = viewModel.authenticate(
+            usernameEditText.text.toString(),
+            passwordEditText.text.toString()
+    )
+    if (authSuccessful) {
+        // Navigate to next screen
+    } else {
+        statusTextView.text = requireContext().getString(R.string.auth_failed)
+    }
+}
+
+O código dentro da função anônima passada para setOnClickListener() é executado quando um usuário clica em loginButton.
+Objetos complementares
+
+Os objetos complementares (link em inglês) fornecem um mecanismo para definir variáveis ou funções que são vinculadas conceitualmente a um tipo, mas não a um objeto específico. Os objetos complementares são similares a usar a palavra-chave static do Java para variáveis e métodos.
+
+No exemplo a seguir, TAG é uma constante de String. Não é necessária uma instância única de String para cada instância de LoginFragment, então você precisa defini-la em um objeto complementar:
+
+class LoginFragment : Fragment() {
+
+    ...
+
+    companion object {
+        private const val TAG = "LoginFragment"
+    }
+}
+
+Você pode definir TAG no nível superior do arquivo, mas ele também pode ter um grande número de variáveis, funções e classes que também são definidas no nível superior. Os objetos complementares ajudam a conectar variáveis, funções e a definição de classe sem fazer referência a nenhuma instância específica dessa classe.
+Delegação de propriedade
+
+Ao inicializar propriedades, você pode repetir alguns dos padrões mais comuns do Android, como acessar um ViewModel em um Fragment. Para evitar excesso de código duplicado, você pode usar a sintaxe de delegação de propriedade do Kotlin.
+
+private val viewModel: LoginViewModel by viewModels()
+
+A delegação de propriedade fornece uma implementação comum que você pode reutilizar em todo o app. O Android KTX fornece alguns representantes de propriedade para você. viewModels, por exemplo, recupera um ViewModel que está no escopo do Fragment.
+
+A delegação de propriedade usa reflexão, o que adiciona alguma sobrecarga no desempenho. A vantagem é uma sintaxe concisa que economiza tempo de desenvolvimento.
+Nulidade
+
+O Kotlin fornece regras de nulidade rigorosas que mantêm a segurança de tipo em todo o app. No Kotlin, as referências a objetos não podem conter valores nulos por padrão. Para atribuir um valor nulo a uma variável, você precisa declarar um tipo de variável anulável adicionando ? ao final do tipo base.
+
+Por exemplo, a expressão a seguir é ilegal em Kotlin. name é do tipo String e não é anulável:
+
+val name: String = null
+
+Para permitir um valor nulo, você precisa usar um tipo String anulável, String?, conforme mostrado no exemplo a seguir:
+
+val name: String? = null
+
+Interoperabilidade
+
+As regras rígidas do Kotlin tornam seu código mais seguro e conciso. Essas regras diminuem as chances de haver um NullPointerException que cause falhas no app. Além disso, elas reduzem o número de verificações de nulos que você precisa fazer no código.
+
+Muitas vezes, você também precisa chamar um código que não é do Kotlin ao criar um app para Android, porque a maioria das APIs do Android é criada na linguagem de programação Java.
+
+Nulidade é uma área-chave em que Java e Kotlin diferem no comportamento. O Java é menos rigoroso com a sintaxe de nulidade.
+
+Como exemplo, a classe Account tem algumas propriedades, incluindo uma propriedade String chamada name. O Java não tem as regras de nulidade do Kotlin, contando com anotações de nulidade opcionais para declarar explicitamente se é possível atribuir um valor nulo.
+
+Como o framework do Android é criado principalmente em Java, você pode se deparar com esse cenário ao chamar APIs sem anotações de nulidade.
+Tipos de plataforma
+
+Se você usar Kotlin para referenciar um membro name não anotado definido em uma classe Java Account, o compilador não saberá se String mapeia para String ou para String? em Kotlin. Essa ambiguidade é representada por um tipo de plataforma, String!.
+
+String! não tem um significado especial para o compilador Kotlin. String! pode representar String ou String?, e o compilador permite atribuir um valor de qualquer tipo. Você corre o risco de receber um NullPointerException se representar o tipo como um String e atribuir um valor nulo.
+
+Para resolver esse problema, use anotações de nulidade sempre que escrever um código em Java. Essas anotações ajudam desenvolvedores Java e Kotlin.
+
+Por exemplo, veja a classe Account como ela é definida em Java:
+
+public class Account implements Parcelable {
+    public final String name;
+    public final String type;
+    private final @Nullable String accessId;
+
+    ...
+}
+
+Uma das variáveis de membro, accessId, é anotada com @Nullable, indicando que ela pode conter um valor nulo. O Kotlin então trataria accessId como um String?.
+
+Para indicar que uma variável nunca pode ser nula, use a anotação @NonNull:
+
+public class Account implements Parcelable {
+    public final @NonNull String name;
+    ...
+}
+
+Nesse cenário, name é considerado String não anulável no Kotlin.
+
+As anotações de nulidade são incluídas em todas as novas APIs do Android e em muitas que já existem. Muitas bibliotecas Java adicionaram anotações de nulidade para oferecer melhor compatibilidade com desenvolvedores Kotlin e Java.
+Como lidar com a nulidade
+
+Se não tiver certeza sobre um tipo de Java, considere que ele é anulável. Como exemplo, o membro name da classe Account não está anotado, então você pode presumir que ele é String anulável.
+
+Se você quiser cortar name para que o valor não inclua espaços em branco à esquerda ou à direita, poderá usar a função trim do Kotlin. Você pode cortar com segurança um String? de algumas maneiras diferentes. Uma dessas formas é usar o operador de asserção não nulo, !!, conforme mostrado no exemplo a seguir:
+
+val account = Account("name", "type")
+val accountName = account.name!!.trim()
+
+O operador !! trata tudo no lado esquerdo como não nulo, portanto, neste caso, você está tratando name como um String não nulo. Se o resultado da expressão à esquerda for nulo, seu app lançará um NullPointerException. Esse operador é rápido e fácil, mas é preciso usá-lo com moderação, porque ele pode reintroduzir instâncias de NullPointerException no seu código.
+
+Uma opção mais segura é usar o operador safe-call, ?., conforme mostrado no exemplo a seguir:
+
+val account = Account("name", "type")
+val accountName = account.name?.trim()
+
+Usando o operador safe-call, se name não for nulo, o resultado de name?.trim() será um valor de nome sem espaços em branco à esquerda ou à direita. Se name for nulo, o resultado de name?.trim() será null. Isso significa que o app nunca poderá lançar um NullPointerException ao executar esta instrução.
+
+Enquanto o operador safe-call salva você de um potencial NullPointerException, ele passa um valor nulo para a próxima instrução. Em vez disso, você pode gerenciar casos nulos imediatamente usando um operador Elvis (?:), conforme mostrado no exemplo a seguir:
+
+val account = Account("name", "type")
+val accountName = account.name?.trim() ?: "Default name"
+
+Se o resultado da expressão no lado esquerdo do operador Elvis for nulo, o valor no lado direito será atribuído a accountName. Essa técnica é útil para fornecer um valor padrão que seria nulo.
+
+Você também pode usar o operador Elvis para retornar de uma função antecipadamente, como mostrado no exemplo a seguir:
+
+fun validateAccount(account: Account?) {
+    val accountName = account?.name?.trim() ?: "Default name"
+
+    // account cannot be null beyond this point
+    account ?: return
+
+    ...
+}
+
+Mudanças na API do Android
+
+As APIs do Android estão se tornando cada vez mais compatíveis com o Kotlin. Muitas das APIs mais comuns do Android, incluindo AppCompatActivity e Fragment, contêm anotações de nulidade, e algumas chamadas como Fragment#getContext têm mais alternativas otimizadas para Kotlin.
+
+Por exemplo, acessar Context de Fragment quase sempre não é nulo, porque a maioria das chamadas feitas em Fragment ocorre enquanto Fragment é anexado a um Activity (uma subclasse de Context). Dito isso, Fragment#getContext não retorna sempre um valor não nulo, porque há cenários em que um Fragment não é anexado a um Activity. Assim, o tipo de retorno de Fragment#getContext é anulável.
+
+Como o Context retornado de Fragment#getContext é anulável (e está anotado como @Nullable), é preciso tratá-lo como um Context? no código Kotlin. Isso significa aplicar um dos operadores mencionados anteriormente para resolver a nulidade antes de acessar as propriedades e funções. Para alguns desses cenários, o Android contém APIs alternativas que oferecem essa conveniência. Fragment#requireContext, por exemplo, retorna um Context não nulo e lança um IllegalStateException se chamado quando um Context seria nulo. Dessa forma, é possível tratar o Context resultante como não nulo sem a necessidade de operadores safe-call ou soluções alternativas.
+Inicialização de propriedades
+
+Propriedades em Kotlin não são inicializadas por padrão. Elas precisam ser inicializadas quando a classe envolvida for inicializada.
+
+Você pode inicializar propriedades de algumas maneiras diferentes. O exemplo a seguir mostra como inicializar uma variável index atribuindo um valor a ela na declaração de classe:
+
+class LoginFragment : Fragment() {
+    val index: Int = 12
+}
+
+Essa inicialização também pode ser definida em um bloco inicializador:
+
+class LoginFragment : Fragment() {
+    val index: Int
+
+    init {
+        index = 12
+    }
+}
+
+Nos exemplos acima, index é inicializado quando um LoginFragment é construído.
+
+No entanto, você pode ter algumas propriedades que não podem ser inicializadas durante a construção do objeto. Por exemplo, talvez você queira referenciar um View a partir de um Fragment, o que significa que o layout precisa ser inflado primeiro. A inflação não ocorre quando um Fragment é construído. Em vez disso, ele é inflado ao chamar Fragment#onCreateView.
+
+Uma maneira de lidar com esse cenário é declarar a visualização como anulável e inicializá-la o mais rápido possível, conforme mostrado no exemplo a seguir:
+
+class LoginFragment : Fragment() {
+    private var statusTextView: TextView? = null
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+            super.onViewCreated(view, savedInstanceState)
+
+            statusTextView = view.findViewById(R.id.status_text_view)
+            statusTextView?.setText(R.string.auth_failed)
+    }
+}
+
+Embora funcione como esperado, é preciso gerenciar a nulidade de View sempre que fizer referência a ela. Uma solução melhor é usar lateinit para a inicialização de View, como mostrado no exemplo a seguir:
+
+class LoginFragment : Fragment() {
+    private lateinit var statusTextView: TextView
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+            super.onViewCreated(view, savedInstanceState)
+
+            statusTextView = view.findViewById(R.id.status_text_view)
+            statusTextView.setText(R.string.auth_failed)
+    }
+}
+
+A palavra-chave lateinit permite que você evite inicializar uma propriedade quando um objeto for construído. Se a propriedade for referenciada antes de ser inicializada, o Kotlin emitirá um UninitializedPropertyAccessException. Portanto, inicialize a propriedade assim que possível.
